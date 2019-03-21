@@ -543,7 +543,9 @@ RCT_EXPORT_METHOD(showImagePicker:(NSDictionary *)options callback:(RCTResponseS
             callback(granted);
             return;
         }];
-    } else {
+    } else if(status == AVAuthorizationStatusDenied){
+        [self checkPermissions:@"相机"];
+    }else {
         callback(NO);
     }
 }
@@ -565,10 +567,60 @@ RCT_EXPORT_METHOD(showImagePicker:(NSDictionary *)options callback:(RCTResponseS
                 return;
             }
         }];
-    }
-    else {
+    }else if(status == PHAuthorizationStatusDenied){
+        [self checkPermissions:@"照片"];
+    }else {
         callback(NO);
     }
+}
+
+- (void)checkPermissions:(NSString *)message{
+    NSDictionary *mainInfoDictionary = [[NSBundle mainBundle] infoDictionary];
+    NSString *appName = [mainInfoDictionary objectForKey:@"CFBundleDisplayName"];
+    NSString *tipTextWhenNoPhotosAuthorization = [NSString stringWithFormat:@"请在\"设置-隐私-%@\"选项中，允许%@访问你的%@", message,appName,message];
+    [self showAlertViewFromController:@"温馨提示"
+                              message:tipTextWhenNoPhotosAuthorization
+                    CancleButtonTitle:@"取消"
+                     otherButtonTitle:@"去设置"
+                    cancleButtonClick:^{
+                        
+                    } otherButtonClick:^{
+                        [self openSystemSetting];
+                    }];
+}
+
+- (void)openSystemSetting
+{
+    if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]]) {
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]];
+    }
+}
+
+- (void)showAlertViewFromController:(NSString *)title
+                            message:(NSString *)message
+                  CancleButtonTitle:(NSString *)cancleTitle
+                   otherButtonTitle:(NSString *)otherTitle
+                  cancleButtonClick:(void(^)(void))cancleClick
+                   otherButtonClick:(void(^)(void))otherButtonClick
+{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title
+                                                                             message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    [alertController addAction:[UIAlertAction actionWithTitle:cancleTitle
+                                                        style:UIAlertActionStyleCancel
+                                                      handler:^(UIAlertAction * _Nonnull action) {
+                                                          cancleClick ();
+                                                      }]];
+    
+    [alertController addAction:[UIAlertAction actionWithTitle:otherTitle
+                                                        style:UIAlertActionStyleDefault
+                                                      handler:^(UIAlertAction * _Nonnull action) {
+                                                          otherButtonClick ();
+                                                      }]];
+    UIViewController *root = RCTPresentedViewController();
+    [root presentViewController:alertController
+                       animated:YES
+                     completion:nil];
 }
 
 - (UIImage*)downscaleImageIfNecessary:(UIImage*)image maxWidth:(float)maxWidth maxHeight:(float)maxHeight
